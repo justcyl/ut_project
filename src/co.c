@@ -12,8 +12,8 @@ static inline void stack_switch_call(void *sp, void *entry, uintptr_t arg) {
   asm volatile(
 #if __x86_64__
       "movq %%rsp,-0x10(%0); leaq -0x20(%0), %%rsp; movq %2, %%rdi ; call *%1; "
-      "movq -0x10(%0) ,%%rsp;"                     // 恢复 rsp
-      :                                              // 没有输出
+      "movq -0x10(%0) ,%%rsp;"                   // 恢复 rsp
+      :                                          // 没有输出
       : "b"((uintptr_t)sp), "d"(entry), "a"(arg) // 输入给rbx, rdx, rax
       : "memory"
 #else
@@ -35,7 +35,7 @@ enum co_status {
 #define STACK_SIZE 64 * 1024
 
 struct co {
-  struct co *next; // 环形链表记录下一个协程
+  struct co *next;       // 环形链表记录下一个协程
   void (*func)(void *);  // 协程的入口函数
   void *arg;             // 协程的参数，仅一个
   enum co_status status; // 协程的状态
@@ -43,7 +43,7 @@ struct co {
                      // co_wait(该协程)
   const char *name, *padding; // 协程的名字，同时要满足堆栈16字节(x64)的对齐
 
-  jmp_buf context;               // 寄存器现场 (setjmp.h)
+  jmp_buf context;           // 寄存器现场 (setjmp.h)
   uint8_t stack[STACK_SIZE]; // 协程的堆栈, 64KiB
 };
 
@@ -62,7 +62,7 @@ struct co *co_start(const char *name, void (*func)(void *), void *arg) {
   start->arg = arg;
   start->func = func;
   start->status = CO_NEW;
-  start->name=name;
+  start->name = name;
   // 环形链表插入使得 start->next=current
   struct co *h = current;
   while (h->next != current) {
@@ -81,7 +81,7 @@ void co_wait(struct co *co) {
 
   current->status = CO_WAITING; // 调用中，设置 waiting 防止再次被调度
   co->waiter = current; // 等待 co 结束后，还需要切换为原来 current
-  while (co->status != CO_DEAD) { 
+  while (co->status != CO_DEAD) {
     co_yield ();
   }
   current->status = CO_RUNNING;
@@ -113,16 +113,17 @@ void co_yield () {
     current = co_next;
 
     if (current->status == CO_NEW) {
-      ((struct co volatile *)current)->status = CO_RUNNING; // volatile 防止编译器优化
+      ((struct co volatile *)current)->status =
+          CO_RUNNING; // volatile 防止编译器优化
       stack_switch_call(&current->stack[STACK_SIZE], current->func,
                         (uintptr_t)current->arg);
-      ((struct co volatile *)current)->status = CO_DEAD;  // 从 call 返回说明已经结束了
-      if (current->waiter){
+      ((struct co volatile *)current)->status =
+          CO_DEAD; // 从 call 返回说明已经结束了
+      if (current->waiter) {
         current = current->waiter;
         longjmp(current->context, 1); // 返回原先调用 co_wait 的协程
-      }
-      else{
-        co_yield();  // 重新调度，直至遇到一个longjmp
+      } else {
+        co_yield (); // 重新调度，直至遇到一个longjmp
       }
     } else { // 执行过setjmp, 即co_yield()被调用过
       longjmp(current->context, 1);
@@ -153,13 +154,13 @@ static __attribute__((constructor)) void co_constructor(void) {
 static __attribute__((destructor)) void co_destructor(void) {
   if (current == NULL)
     return;
-  if (current == current->next){
+  if (current == current->next) {
     free(current);
     return;
   }
   struct co *it = current->next;
-  current->next=NULL;
-  current=it;
+  current->next = NULL;
+  current = it;
   while (current) {
     it = current;
     current = current->next;

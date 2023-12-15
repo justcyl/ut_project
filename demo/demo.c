@@ -1,12 +1,12 @@
-#include <stdio.h>
 #include "co.h"
+#include <stdio.h>
 
 int count = 1; // 协程之间共享
 
 void entry(void *arg) {
   for (int i = 0; i < 5; i++) {
     printf("%s[%d] ", (const char *)arg, count++);
-    co_yield();
+    co_yield ();
   }
 }
 
